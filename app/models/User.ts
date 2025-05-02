@@ -23,6 +23,8 @@ export interface IUser extends Document {
   password: string;
   profilePicture: string;
   role: UserRole;
+  descriptor: number[]; // 👈 Add this line
+
   address: Address;
   createdAt: Date;
   updatedAt: Date;
@@ -49,6 +51,11 @@ const userSchema: Schema = new Schema(
       type: String,
       required: true,
       enum: Object.values(UserRole),
+    },
+    
+    descriptor: {
+      type: [Number], // 👈 Add this line
+      required: false, // optional during initial creation
     },
   },
   { timestamps: true }

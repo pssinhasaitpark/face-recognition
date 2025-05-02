@@ -5,7 +5,7 @@ import { fileUploader } from '../middlewares/fileHandler';
 const router = express.Router();
 
 router.post('/register', fileUploader, register);
-router.post('/login', loginUser);
+router.post('/login',fileUploader, loginUser);
 
 
 export default router;

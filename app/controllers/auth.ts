@@ -4,10 +4,11 @@ import jwt from "jsonwebtoken";
 import { Business, User } from "../models/index";
 
 import asyncHandler from "../utils/asyncHandler";
+import path from "path";
+import { rekognition } from "../configs/aws";
+
 
 const SECRET_KEY = process.env.SECRET_KEY || "adfaufasdfasdfiadsufhasdfuiasd";
-
-
 
 // Registration
 export const register = asyncHandler(async (req: Request, res: Response) => {
@@ -41,12 +42,12 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
         percentageOfDiscountOffered,
         username,
         password: hashedPassword,
-        profilePicture: profile
+        businessLogo: profile
       });
 
       await newBusiness.save();
 
-      res.status(201).json({ message: "Business registered successfully!" });
+      res.status(201).json({ message: "Business registered successfully!", newBusiness });
     } catch (error) {
       res.status(500).json({ message: "Server error. Please try again later." });
     }
@@ -94,83 +95,68 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
         .status(500)
         .json({ message: "Server error. Please try again later." });
     }
+  } else {
+    res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
+
 );
 
-
-
-
-// Login
+// Login  
 export const loginUser = asyncHandler(async (req: Request, res: Response) => {
-
   if (req.body.role === 'user') {
-
-
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res
-        .status(400)
-        .json({ message: "Please enter both username and password." });
-    }
-
     try {
-      // Find the user by username
-      const user = await User.findOne({ username });
-      if (!user) {
-        return res.status(400).json({ message: "User not found." });
-      }
-
-      // Compare the password
-      const passwordMatch = await bcrypt.compare(password, user.password);
-      if (!passwordMatch) {
-        return res.status(400).json({ message: "Incorrect password." });
-      }
-
-      // Create a JWT token
-      const token = jwt.sign({ userId: user._id }, SECRET_KEY, {
-        expiresIn: "1h",
-      });
-
-      res.status(200).json({ message: "Login successful!", token });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Server error. Please try again later." });
-    }
-  } else if (req.body.role === 'business') {
-
-
-    const { username, password } = req.body;
-
-    if (!username || !password) {
-      return res
-        .status(400)
-        .json({ message: "Please enter both username and password." });
+      const { imageBase64 } = req.body;
+  
+      const buffer = Buffer.from(imageBase64, 'base64');
+  
+      const params: AWS.Rekognition.DetectFacesRequest = {
+        Image: {
+          Bytes: buffer,
+        },
+        Attributes: ['ALL'],
+      };
+  
+      const result = await rekognition.detectFaces(params).promise();
+      res.json(result);
+    } catch (error: any) {
+      console.error('Rekognition Error:', error);
+      res.status(500).json({ error: error.message });
     }
 
-    try {
-      // Find the user by username
-      const user = await User.findOne({ username });
-      if (!user) {
-        return res.status(400).json({ message: "User not found." });
-      }
-
-      // Compare the password
-      const passwordMatch = await bcrypt.compare(password, user.password);
-      if (!passwordMatch) {
-        return res.status(400).json({ message: "Incorrect password." });
-      }
-
-      // Create a JWT token
-      const token = jwt.sign({ userId: user._id }, SECRET_KEY, {
-        expiresIn: "1h",
-      });
-
-      res.status(200).json({ message: "Login successful!", token });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Server error. Please try again later." });
-    }
   }
+  else
+    if (req.body.role === 'business') {
+      const { username, password } = req.body;
+
+      if (!username || !password) {
+        return res
+          .status(400)
+          .json({ message: "Please enter both username and password." });
+      }
+
+      try {
+        // Find the user by username
+        const user = await User.findOne({ username });
+        if (!user) {
+          return res.status(400).json({ message: "User not found." });
+        }
+
+        // Compare the password
+        const passwordMatch = await bcrypt.compare(password, user.password);
+        if (!passwordMatch) {
+          return res.status(400).json({ message: "Incorrect password." });
+        }
+
+        // Create a JWT token
+        const token = jwt.sign({ userId: user._id }, SECRET_KEY, {
+          expiresIn: "1h",
+        });
+
+        res.status(200).json({ message: "Login successful!", token });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error. Please try again later." });
+      }
+    }
 });
